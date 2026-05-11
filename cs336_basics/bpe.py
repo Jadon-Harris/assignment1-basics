@@ -1,4 +1,23 @@
 import os
+import pickle
+from collections import defaultdict
+
+import regex
+
+def merge_token_sequence(token_seq: tuple, best_pair: tuple) -> tuple:
+    new_seq = []
+    combined_token = best_pair[0] + best_pair[1]
+    i = 0
+    while i < len(token_seq):
+        # 检查当前位置是否是最佳对的开始
+        if i < len(token_seq) - 1 and (token_seq[i], token_seq[i+1]) == best_pair:
+            new_seq.append(combined_token)
+            i += 2
+        else:
+            new_seq.append(token_seq[i])
+            i += 1
+    return tuple(new_seq)
+
 
 def train_bpe_tokenizer(input_path: str | os.PathLike,
                         vocab_size: int,
@@ -6,20 +25,95 @@ def train_bpe_tokenizer(input_path: str | os.PathLike,
     vocab: dict[int, bytes] = {i: bytes([i]) for i in range(256)}
     exists_token: set[bytes] = set(vocab.values())
     next_token_id = len(vocab)
+    token_freq_table = defaultdict(int)
 
+    # 将special token 加入vocab
     for special_token in special_tokens:
         if special_token not in exists_token:
             vocab[next_token_id] = special_token
             next_token_id += 1
 
+    # 读取文件
     try:
         with open(input_path, 'r', encoding='utf-8', errors='ignore') as f:
             text = f.read()
     except FileNotFoundError:
         text = ''
 
-    #todo 分割字符串
-    raise NotImplementedError
+    # 分割字符串
+    # # 先按special token做分割，注意special token中存在一些特殊字符，需要进行转译
+    chunks = regex.split('|'.join(map(regex.escape, special_tokens)), text)
+    # # 再按如下规则匹配切分:
+    # # 1. '(?:[sdmt]|ll|ve|re)    ：匹配英文缩写后缀，如 's、'd、'm、't、'll、've、're
+    # # 2.  ?\p{L}+                ：匹配“可选前导空格 + 连续字母”，如 hello、 world、你好
+    # # 3.  ?\p{N}+                ：匹配“可选前导空格 + 连续数字”，如 123、 2026
+    # # 4.  ?[^\s\p{L}\p{N}]+      ：匹配“可选前导空格 + 连续符号/标点”，如 !、 !!!、<|endoftext|>
+    # # 5. \s+(?!\S)               ：匹配一串空白，且后面不是非空白字符，通常用于匹配结尾空白
+    # # 6. \s+                     ：匹配其他空白字符，如空格、换行、Tab
+    PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+    for chunk in chunks:
+        for word in regex.findall(PAT, chunk):
+            word_bytes = word.encode('utf-8')
+            bytes_list = [bytes([x]) for x in word_bytes]
+            token_freq_table[type(bytes_list)] += 1
+
+    # 统计pair出现次数
+    pair_counts: defaultdict[tuple[bytes, bytes], int] = defaultdict(int)
+    for token in token_freq_table.keys():
+        for i in range(len(token) - 1):
+            pair_counts[token[i], token[i + 1]] += token_freq_table[token]
+
+    merges: list[tuple[bytes, bytes]] = []
+
+    while len(vocab) < vocab_size:
+        if not pair_counts: break
+
+        # 找到频率最高的，可能有多个最多的次数相同
+        max_count = max(pair_counts.values())
+        candidates = [k for k, v in pair_counts.items() if v == max_count]
+        # 选一个字节序最大的，不是字节序最大效果最好，而是为了统一标准，保证每次训练的结果一致
+        best_pair = max(candidates)
+        # 将这个合并规则添加到merges
+        merges.append(best_pair)
+
+        #合并为新token，添加到vocab
+        combined_token = best_pair[0] + best_pair[1]
+        vocab[next_token_id] = combined_token
+        next_token_id += 1
+
+        # 查看token_freq_table有哪些token中包含best_pair
+        affected_tokens = []
+        for token,freq in token_freq_table.items():
+            if any(token[i:i+2] == best_pair for i in range(len(token) - 1)):
+                affected_tokens.append((token,freq))
+
+
+        for token,freq in affected_tokens:
+            # 将token中各个pair贡献的值从pair_counts中减掉
+            for i in range(len(token) - 1):
+                pair_counts[token[i], token[i + 1]] -= freq
+                if pair_counts[token[i], token[i + 1]] <= 0:
+                    pair_counts.pop((token[i], token[i + 1]), None)
+
+            # 合并best_pair，并生成一个新的token
+            new_token_bytes = merge_token_sequence(token, best_pair, )
+            # 更新pairs
+            for i in range(len(token) - 1):
+                pair = (new_token_bytes[i] + new_token_bytes[i + 1])
+                pair_counts[pair] += freq
+
+            token_freq_table.pop(token, None)
+            token_freq_table[new_token_bytes] += freq
+
+    # 保存词汇表到文件，使用二进制写入模式
+    with open("vocab.pkl", "wb") as f:
+        pickle.dump(vocab, f)
+
+    # 保存 BPE 合并规则到文件，使用二进制写入模式
+    with open("merges.pkl", "wb") as f:
+        pickle.dump(merges, f)
+
+    return vocab, merges
 
 
 if __name__ == '__main__':
