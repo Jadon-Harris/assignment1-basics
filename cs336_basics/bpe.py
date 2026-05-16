@@ -4,13 +4,14 @@ from collections import defaultdict
 
 import regex
 
+
 def merge_token_sequence(token_seq: tuple, best_pair: tuple) -> tuple:
     new_seq = []
     combined_token = best_pair[0] + best_pair[1]
     i = 0
     while i < len(token_seq):
         # 检查当前位置是否是最佳对的开始
-        if i < len(token_seq) - 1 and (token_seq[i], token_seq[i+1]) == best_pair:
+        if i < len(token_seq) - 1 and (token_seq[i], token_seq[i + 1]) == best_pair:
             new_seq.append(combined_token)
             i += 2
         else:
@@ -76,19 +77,18 @@ def train_bpe_tokenizer(input_path: str | os.PathLike,
         # 将这个合并规则添加到merges
         merges.append(best_pair)
 
-        #合并为新token，添加到vocab
+        # 合并为新token，添加到vocab
         combined_token = best_pair[0] + best_pair[1]
         vocab[next_token_id] = combined_token
         next_token_id += 1
 
         # 查看token_freq_table有哪些token中包含best_pair
         affected_tokens = []
-        for token,freq in token_freq_table.items():
-            if any(token[i:i+2] == best_pair for i in range(len(token) - 1)):
-                affected_tokens.append((token,freq))
+        for token, freq in token_freq_table.items():
+            if any(token[i:i + 2] == best_pair for i in range(len(token) - 1)):
+                affected_tokens.append((token, freq))
 
-
-        for token,freq in affected_tokens:
+        for token, freq in affected_tokens:
             # 将token中各个pair贡献的值从pair_counts中减掉
             for i in range(len(token) - 1):
                 pair_counts[token[i], token[i + 1]] -= freq
@@ -117,4 +117,9 @@ def train_bpe_tokenizer(input_path: str | os.PathLike,
 
 
 if __name__ == '__main__':
-    train_bpe_tokenizer("", 2, [])
+    special_tokens = ["<|endoftext|>"]
+    vocab, merges = train_bpe_tokenizer("../data/owt_train.txt", 20000, [""])
+
+    # vocab, merges = run_train_bpe(data_path, vocab_size, special_tokens)
+    print(vocab)
+    print(merges)
