@@ -1,8 +1,53 @@
 import os
 import pickle
+import time
 from collections import defaultdict
 
 import regex
+
+from cs336_basics.log_utils import log_info
+
+
+def get_word_one_by_one(file_path: str | os.PathLike, special_tokens: list[str], chunk_size: int = 64 * 1024 * 1024):
+    # # 1. '(?:[sdmt]|ll|ve|re)    ：匹配英文缩写后缀，如 's、'd、'm、't、'll、've、're
+    # # 2.  ?\p{L}+                ：匹配“可选前导空格 + 连续字母”，如 hello、 world、你好
+    # # 3.  ?\p{N}+                ：匹配“可选前导空格 + 连续数字”，如 123、 2026
+    # # 4.  ?[^\s\p{L}\p{N}]+      ：匹配“可选前导空格 + 连续符号/标点”，如 !、 !!!、<|endoftext|>
+    # # 5. \s+(?!\S)               ：匹配一串空白，且后面不是非空白字符，通常用于匹配结尾空白
+    # # 6. \s+                     ：匹配其他空白字符，如空格、换行、Tab
+    pat = regex.compile(
+        r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+    )
+
+    special_tokens_re = None
+    if special_tokens:
+        special_tokens_re = regex.compile('|'.join(map(regex.escape, special_tokens)))
+
+    carry = ""
+    with open(file_path, 'r', encoding='utf-8', errors='ignore') as f:
+        while True:
+            block = f.read(chunk_size)
+            if not block:
+                if carry:
+                    chunks = special_tokens_re.split(carry) if special_tokens_re else [carry]
+                    for chunk in chunks:
+                        for word in pat.findall(chunk):
+                            yield word
+                break
+            text = carry + block
+            cut = max(text.rfind(" "),
+                      text.rfind("\r"),
+                      text.rfind("\n"),
+                      text.rfind("\t"))
+            if cut == -1:
+                cut = max(0, len(text) - 4096)
+
+            process_text = text[:cut]
+            carry = text[cut:]
+            chunks = special_tokens_re.split(process_text) if special_tokens_re else [process_text]
+            for chunk in chunks:
+                for word in pat.findall(chunk):
+                    yield word
 
 
 def merge_token_sequence(token_seq: tuple, best_pair: tuple) -> tuple:
@@ -23,6 +68,14 @@ def merge_token_sequence(token_seq: tuple, best_pair: tuple) -> tuple:
 def train_bpe_tokenizer(input_path: str | os.PathLike,
                         vocab_size: int,
                         special_tokens: list) -> tuple[dict[int, bytes], list[tuple[bytes, bytes]]]:
+    file_size = os.path.getsize(input_path) / 1024 / 1024 / 1024
+
+    log_info(f"Start training BPE tokenizer")
+    log_info(f"Input file: {input_path}")
+    log_info(f"File size: {file_size:.2f} GB")
+    log_info(f"Target vocab size: {vocab_size}")
+    log_info(f"Special tokens: {special_tokens}")
+
     vocab: dict[int, bytes] = {i: bytes([i]) for i in range(256)}
     exists_token: set[bytes] = set(vocab.values())
     next_token_id = len(vocab)
@@ -34,29 +87,35 @@ def train_bpe_tokenizer(input_path: str | os.PathLike,
             vocab[next_token_id] = special_token
             next_token_id += 1
 
-    # 读取文件
-    try:
-        with open(input_path, 'r', encoding='utf-8', errors='ignore') as f:
-            text = f.read()
-    except FileNotFoundError:
-        text = ''
+    # ！！！ 内存不够，不能一次读取
+    # # 读取文件
+    # try:
+    #     with open(input_path, 'r', encoding='utf-8', errors='ignore') as f:
+    #         text = f.read()
+    # except FileNotFoundError:
+    #     text = ''
+    #
+    # # 分割字符串
+    # # # 先按special token做分割，注意special token中存在一些特殊字符，需要进行转译
+    # chunks = regex.split('|'.join(map(regex.escape, special_tokens)), text)
+    # # # 再按如下规则匹配切分:
+    # # # 1. '(?:[sdmt]|ll|ve|re)    ：匹配英文缩写后缀，如 's、'd、'm、't、'll、've、're
+    # # # 2.  ?\p{L}+                ：匹配“可选前导空格 + 连续字母”，如 hello、 world、你好
+    # # # 3.  ?\p{N}+                ：匹配“可选前导空格 + 连续数字”，如 123、 2026
+    # # # 4.  ?[^\s\p{L}\p{N}]+      ：匹配“可选前导空格 + 连续符号/标点”，如 !、 !!!、<|endoftext|>
+    # # # 5. \s+(?!\S)               ：匹配一串空白，且后面不是非空白字符，通常用于匹配结尾空白
+    # # # 6. \s+                     ：匹配其他空白字符，如空格、换行、Tab
+    # PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+    # for chunk in chunks:
+    #     for word in regex.findall(PAT, chunk):
+    #         word_bytes = word.encode('utf-8')
+    #         bytes_list = [bytes([x]) for x in word_bytes]
+    #         token_freq_table[tuple(bytes_list)] += 1
 
-    # 分割字符串
-    # # 先按special token做分割，注意special token中存在一些特殊字符，需要进行转译
-    chunks = regex.split('|'.join(map(regex.escape, special_tokens)), text)
-    # # 再按如下规则匹配切分:
-    # # 1. '(?:[sdmt]|ll|ve|re)    ：匹配英文缩写后缀，如 's、'd、'm、't、'll、've、're
-    # # 2.  ?\p{L}+                ：匹配“可选前导空格 + 连续字母”，如 hello、 world、你好
-    # # 3.  ?\p{N}+                ：匹配“可选前导空格 + 连续数字”，如 123、 2026
-    # # 4.  ?[^\s\p{L}\p{N}]+      ：匹配“可选前导空格 + 连续符号/标点”，如 !、 !!!、<|endoftext|>
-    # # 5. \s+(?!\S)               ：匹配一串空白，且后面不是非空白字符，通常用于匹配结尾空白
-    # # 6. \s+                     ：匹配其他空白字符，如空格、换行、Tab
-    PAT = r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-    for chunk in chunks:
-        for word in regex.findall(PAT, chunk):
-            word_bytes = word.encode('utf-8')
-            bytes_list = [bytes([x]) for x in word_bytes]
-            token_freq_table[type(bytes_list)] += 1
+    for word in get_word_one_by_one(input_path, special_tokens, chunk_size=64 * 1024 * 1024):
+        word_bytes = word.encode("utf-8")
+        bytes_list = [bytes([x]) for x in word_bytes]
+        token_freq_table[tuple(bytes_list)] += 1
 
     # 统计pair出现次数
     pair_counts: defaultdict[tuple[bytes, bytes], int] = defaultdict(int)
@@ -66,8 +125,17 @@ def train_bpe_tokenizer(input_path: str | os.PathLike,
 
     merges: list[tuple[bytes, bytes]] = []
 
+    merge_start_time = time.time()
+    merge_step = 0
+    log_every_merges = 100
+
+    log_info("Start BPE merge loop")
     while len(vocab) < vocab_size:
-        if not pair_counts: break
+        if not pair_counts:
+            log_info("pair_counts is empty, stop training")
+            break
+
+        merge_step += 1
 
         # 找到频率最高的，可能有多个最多的次数相同
         max_count = max(pair_counts.values())
@@ -96,15 +164,28 @@ def train_bpe_tokenizer(input_path: str | os.PathLike,
                     pair_counts.pop((token[i], token[i + 1]), None)
 
             # 合并best_pair，并生成一个新的token
-            new_token_bytes = merge_token_sequence(token, best_pair, )
+            new_token_bytes = merge_token_sequence(token, best_pair)
             # 更新pairs
-            for i in range(len(token) - 1):
-                pair = (new_token_bytes[i] + new_token_bytes[i + 1])
+            for i in range(len(new_token_bytes) - 1):
+                pair = (new_token_bytes[i], new_token_bytes[i + 1])
                 pair_counts[pair] += freq
 
             token_freq_table.pop(token, None)
             token_freq_table[new_token_bytes] += freq
+        if merge_step % log_every_merges == 0 or len(vocab) == vocab_size:
+            elapsed = time.time() - merge_start_time
+            avg_time = elapsed / merge_step if merge_step > 0 else 0
 
+            log_info(
+                f"merge step: {merge_step:,}, "
+                f"vocab size: {len(vocab):,}/{vocab_size:,}, "
+                f"best_pair: {best_pair}, "
+                f"count: {max_count:,}, "
+                f"affected token seqs: {len(affected_tokens):,}, "
+                f"token_freq_table size: {len(token_freq_table):,}, "
+                f"pair_counts size: {len(pair_counts):,}, "
+                f"avg merge time: {avg_time:.4f}s"
+            )
     # 保存词汇表到文件，使用二进制写入模式
     with open("vocab.pkl", "wb") as f:
         pickle.dump(vocab, f)
@@ -118,8 +199,7 @@ def train_bpe_tokenizer(input_path: str | os.PathLike,
 
 if __name__ == '__main__':
     special_tokens = ["<|endoftext|>"]
-    vocab, merges = train_bpe_tokenizer("../data/owt_train.txt", 20000, [""])
-
-    # vocab, merges = run_train_bpe(data_path, vocab_size, special_tokens)
-    print(vocab)
-    print(merges)
+    # vocab, merges = train_bpe_tokenizer("../data/TinyStoriesV2-GPT4-train.txt", 5000, special_tokens)
+    vocab, merges = train_bpe_tokenizer("../data/test.txt", 5000, special_tokens)
+    log_info(f"vocab size: {len(vocab):,}")
+    log_info(f"merges size: {len(merges):,}")
