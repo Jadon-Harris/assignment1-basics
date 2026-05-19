@@ -84,7 +84,8 @@ def train_bpe_tokenizer(input_path: str | os.PathLike,
     # 将special token 加入vocab
     for special_token in special_tokens:
         if special_token not in exists_token:
-            vocab[next_token_id] = special_token
+            vocab[next_token_id] = special_token.encode("utf8")
+            exists_token.add(special_token)
             next_token_id += 1
 
     # ！！！ 内存不够，不能一次读取
