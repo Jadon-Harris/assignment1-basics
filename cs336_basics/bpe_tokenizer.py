@@ -23,6 +23,7 @@ class BpeTokenizer:
 
         if self.special_tokens_reg is None:
             token_ids.extend(self._encode_ordinary(text))
+            return token_ids
 
         chunks = self.special_tokens_reg.split(text)
         for chunk in chunks:
