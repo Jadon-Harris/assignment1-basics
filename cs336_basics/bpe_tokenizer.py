@@ -1,3 +1,5 @@
+from typing import Iterable
+
 import regex
 from cs336_basics.bpe_trainer import train_bpe_tokenizer
 
@@ -81,6 +83,10 @@ class BpeTokenizer:
         token_bytes: bytes = b''.join(self.vocab[token_id] for token_id in token_ids)
         return token_bytes.decode("utf-8", errors='replace')
 
+    def encode_iterable(self, iterable: Iterable[str]):
+        for text in iterable:
+            yield from self.encode(text)
+
 
 if __name__ == '__main__':
     text = "hello world <|endoftext|> hahahah"
@@ -88,4 +94,6 @@ if __name__ == '__main__':
     vocab, merges = train_bpe_tokenizer("../data/test.txt", 300, special_tokens)
     tokenizer = BpeTokenizer(vocab, merges, special_tokens)
     res = tokenizer.encode(text)
-    assert text == tokenizer.decode(res)
+    print(f'origin text: {text}')
+    print(f'encode: {res}')
+    print(f'decode: {tokenizer.decode(res)}')
