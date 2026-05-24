@@ -13,36 +13,49 @@ class BpeTokenizer:
         self.special_tokens = special_tokens or []
         self.token_to_id: dict[bytes, int] = {v: k for k, v in self.vocab.items()}
         self.merge_rank = {pair: rank for rank, pair in enumerate(self.merges)}
-        if special_tokens:
-            special_tokens_pat = '|'.join(
-                regex.escape(token) for token in sorted(self.special_tokens, key=len, reverse=True))
-            self.special_tokens_reg = regex.compile(f'({special_tokens_pat})')
+
+        self.pat = regex.compile(
+            r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
+        )
+
+        if self.special_tokens:
+            special_tokens_pat = "|".join(
+                regex.escape(token)
+                for token in sorted(self.special_tokens, key=len, reverse=True)
+            )
+            self.special_tokens_reg = regex.compile(f"({special_tokens_pat})")
         else:
             self.special_tokens_reg = None
 
     def encode(self, text: str) -> list[int]:
-        token_ids = []
+        token_ids: list[int] = []
 
         if self.special_tokens_reg is None:
-            token_ids.extend(self._encode_ordinary(text))
-            return token_ids
+            return self._encode_ordinary(text)
 
-        chunks = self.special_tokens_reg.split(text)
-        for chunk in chunks:
-            if chunk in self.special_tokens:
-                token_ids.append(self.token_to_id[chunk.encode("utf-8")])
-            else:
-                token_ids.extend(self._encode_ordinary(chunk))
+        start = 0
+
+        for match in self.special_tokens_reg.finditer(text):
+            ordinary_text = text[start:match.start()]
+            if ordinary_text:
+                token_ids.extend(self._encode_ordinary(ordinary_text))
+
+            special_token = match.group(0)
+            token_ids.append(self.token_to_id[special_token.encode("utf-8")])
+
+            start = match.end()
+
+        ordinary_text = text[start:]
+        if ordinary_text:
+            token_ids.extend(self._encode_ordinary(ordinary_text))
+
         return token_ids
 
     def _encode_ordinary(self, text: str) -> list[int]:
-        token_ids = []
-        pat = regex.compile(
-            r"""'(?:[sdmt]|ll|ve|re)| ?\p{L}+| ?\p{N}+| ?[^\s\p{L}\p{N}]+|\s+(?!\S)|\s+"""
-        )
+        token_ids: list[int] = []
 
-        pre_tokens = pat.findall(text)
-        for pre_token in pre_tokens:
+        for match in self.pat.finditer(text):
+            pre_token = match.group(0)
             byte_tokens = [bytes([x]) for x in pre_token.encode("utf-8")]
             bpe_tokens = self.merge_sub_tokens(byte_tokens)
 
