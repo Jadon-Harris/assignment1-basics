@@ -1,7 +1,7 @@
 from typing import Iterable
 
 import regex
-from cs336_basics.bpe_trainer import train_bpe_tokenizer
+from cs336_basics.bpe.bpe_trainer import train_bpe_tokenizer
 
 
 class BpeTokenizer:

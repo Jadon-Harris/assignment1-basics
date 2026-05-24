@@ -5,7 +5,7 @@ from collections import defaultdict
 
 import regex
 
-from cs336_basics.log_utils import log_info
+from cs336_basics.log.log_utils import log_info
 
 
 def get_word_one_by_one(file_path: str | os.PathLike, special_tokens: list[str], chunk_size: int = 64 * 1024 * 1024):
@@ -201,6 +201,6 @@ def train_bpe_tokenizer(input_path: str | os.PathLike,
 if __name__ == '__main__':
     special_tokens = ["<|endoftext|>"]
     # vocab, merges = train_bpe_tokenizer("../data/TinyStoriesV2-GPT4-train.txt", 5000, special_tokens)
-    vocab, merges = train_bpe_tokenizer("../data/test.txt", 5000, special_tokens)
+    vocab, merges = train_bpe_tokenizer("../../data/test.txt", 5000, special_tokens)
     log_info(f"vocab size: {len(vocab):,}")
     log_info(f"merges size: {len(merges):,}")
