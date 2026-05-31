@@ -28,8 +28,7 @@ class MultiHeadSelfAttention(nn.Module):
         self.v_w = Linear(d_model, d_model, device=device, dtype=dtype)
         self.o_w = Linear(d_model, d_model, device=device, dtype=dtype)
         self.pe = None
-        if pe is not None and max_seq_len is not None and token_positions is not None:
-            # multi head self-attention with pe
+        if pe is not None and theta is not None and max_seq_len is not None:
             self.pe = pe(theta, self.d_k, max_seq_len, device=device, dtype=dtype)
         self.token_positions = token_positions
         self.use_causal_mask = use_causal_mask
