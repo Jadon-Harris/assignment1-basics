@@ -6,7 +6,7 @@ from einops import einsum
 
 
 class Linear(nn.Module):
-    def __init__(self, in_features, out_features, device=None, dtype=None):
+    def __init__(self, in_features: int, out_features: int, device=None, dtype=None):
         """
         in_features: int  final dimension of the input
         out_features: int  final dimension of the output
@@ -19,9 +19,8 @@ class Linear(nn.Module):
         self.device = device
         self.dtype = dtype
         self.weight = nn.Parameter(torch.empty(out_features, in_features, device=device, dtype=dtype))
-        sigma = math.sqrt(2/(in_features+out_features))
-        nn.init.trunc_normal_(self.weight, mean=0, std=sigma,a= -3*sigma,b = 3*sigma)
-
+        sigma = math.sqrt(2 / (in_features + out_features))
+        nn.init.trunc_normal_(self.weight, mean=0, std=sigma, a=-3 * sigma, b=3 * sigma)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
-        return einsum(x,self.weight,"... d_in, d_out d_in -> ... d_out")
+        return einsum(x, self.weight, "... d_in, d_out d_in -> ... d_out")
