@@ -20,6 +20,7 @@ from cs336_basics.module.rope import RoPE
 from cs336_basics.module.softmax import softmax
 from cs336_basics.bpe.bpe_trainer import train_bpe_tokenizer
 from cs336_basics.transformer.transformer_block import TransformerBlock
+from cs336_basics.transformer.transformer_lm import TransformerLM
 
 
 def run_linear(
@@ -417,8 +418,22 @@ def run_transformer_lm(
         Float[Tensor, "batch_size sequence_length vocab_size"]: Tensor with the predicted unnormalized
         next-word distribution for each token.
     """
-    raise NotImplementedError
-
+    transformer = TransformerLM(vocab_size, context_length, d_model,num_heads,num_layers,d_ff,rope_theta)
+    remap:dict[str, Tensor] = {'embedding.weight': weights['token_embeddings.weight']}
+    for i in range(num_layers):
+        remap[f'tf_layers.{i}.attention.q_w.weight'] = weights[f'layers.{i}.attn.q_proj.weight']
+        remap[f'tf_layers.{i}.attention.k_w.weight'] = weights[f'layers.{i}.attn.k_proj.weight']
+        remap[f'tf_layers.{i}.attention.v_w.weight'] = weights[f'layers.{i}.attn.v_proj.weight']
+        remap[f'tf_layers.{i}.attention.o_w.weight'] = weights[f'layers.{i}.attn.output_proj.weight']
+        remap[f'tf_layers.{i}.ln1.weight'] = weights[f'layers.{i}.ln1.weight']
+        remap[f'tf_layers.{i}.ln2.weight'] = weights[f'layers.{i}.ln2.weight']
+        remap[f'tf_layers.{i}.ffn.w1_weight'] = weights[f'layers.{i}.ffn.w1.weight']
+        remap[f'tf_layers.{i}.ffn.w2_weight'] = weights[f'layers.{i}.ffn.w2.weight']
+        remap[f'tf_layers.{i}.ffn.w3_weight'] = weights[f'layers.{i}.ffn.w3.weight']
+    remap['norm.weight'] = weights['ln_final.weight']
+    remap['linear.weight'] = weights['lm_head.weight']
+    transformer.load_state_dict(remap, strict=False)
+    return transformer(in_indices)
 
 def run_rmsnorm(
         d_model: int,

@@ -21,10 +21,12 @@ class RoPE(nn.Module):
             token_positions = token_positions[0]
 
         theta = einsum(token_positions, self.inv_freq, 'n, d -> n d')  # (seq_len, d_k/2)
-
-        cos = theta.cos().repeat_interleave(2, dim=-1)[None,None,:,:]  # (head_nums,seq_len, d_k)
-        sin = theta.sin().repeat_interleave(2, dim=-1)[None,None,:,:]  # (head_nums,seq_len, d_k)
-
+        if x.ndim == 3:
+            cos = theta.cos().repeat_interleave(2, dim=-1)[None,:,:]  # (batch, seq_len, d_k)
+            sin = theta.sin().repeat_interleave(2, dim=-1)[None,:,:]  # (batch, seq_len, d_k)
+        elif x.ndim == 4:
+            cos = theta.cos().repeat_interleave(2, dim=-1)[None, None, :, :]  # (batch, head_nums, seq_len, d_k)
+            sin = theta.sin().repeat_interleave(2, dim=-1)[None, None, :, :]  # (batch, head_nums, seq_len, d_k)
         rotated_x = self.rotate(x)
 
         return x * cos + rotated_x * sin
