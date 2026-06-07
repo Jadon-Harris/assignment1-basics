@@ -1,9 +1,10 @@
 import os
-import pickle
 import time
 from collections import defaultdict
 
+import numpy as np
 import regex
+from tqdm import tqdm
 
 from cs336_basics.log.log_utils import log_info
 
@@ -187,20 +188,25 @@ def train_bpe_tokenizer(input_path: str | os.PathLike,
                 f"pair_counts size: {len(pair_counts):,}, "
                 f"avg merge time: {avg_time:.4f}s"
             )
-    # 保存词汇表到文件，使用二进制写入模式
-    with open("vocab.pkl", "wb") as f:
-        pickle.dump(vocab, f)
-
-    # 保存 BPE 合并规则到文件，使用二进制写入模式
-    with open("merges.pkl", "wb") as f:
-        pickle.dump(merges, f)
 
     return vocab, merges
 
+def encode_txt_as_np_array(tokenizer, path_to_txt:str, save_path:str):
+    with open(path_to_txt, "r") as f:
+        num_lines = sum(1 for _ in f)
+    total_tokens = 0
+    with open(path_to_txt, "r") as f:
+        for line in tqdm(f, total=num_lines, desc="Counting tokens"):
+            total_tokens += len(tokenizer.encode(line))
 
-if __name__ == '__main__':
-    special_tokens = ["<|endoftext|>"]
-    # vocab, merges = train_bpe_tokenizer("../data/TinyStoriesV2-GPT4-train.txt", 5000, special_tokens)
-    vocab, merges = train_bpe_tokenizer("../../data/test.txt", 5000, special_tokens)
-    log_info(f"vocab size: {len(vocab):,}")
-    log_info(f"merges size: {len(merges):,}")
+    dtype = np.int32
+    tokens_mm = np.memmap(save_path, dtype=dtype, mode="w+", shape=(total_tokens,))
+
+    pos = 0
+    with open(path_to_txt, "r") as f:
+        for line in tqdm(f, total=num_lines, desc="Encoding tokens"):
+            ids = tokenizer.encode(line)
+            n = len(ids)
+            tokens_mm[pos:pos+n] = ids
+            pos += n
+    tokens_mm.flush()
