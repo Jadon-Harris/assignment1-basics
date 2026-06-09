@@ -4,18 +4,9 @@ import pickle
 
 from cs336_basics.bpe.bpe_tokenizer import BpeTokenizer
 from cs336_basics.bpe.bpe_trainer import train_bpe_tokenizer, encode_txt_as_np_array
+from cs336_basics.config.config import TRAIN_TXT_DATA_PATH, VOCAB_SIZE, SPECIAL_TOKENS, VOCAB_PATH, MERGES_PATH, \
+    TRAIN_DATA_PATH, VALID_DATA_PATH, VALID_TXT_DATA_PATH
 from cs336_basics.log.log_utils import log_info
-
-TRAIN_TXT_DATA_PATH = '../../data/TinyStoriesV2-GPT4-train.txt'
-VALID_TXT_DATA_PATH = '../../data/TinyStoriesV2-GPT4-valid.txt'
-VOCAB_SIZE = 10000
-SPECIAL_TOKENS = ["<|endoftext|>"]
-
-VOCAB_PATH = '../../tokenizer/tinystories_bep_vocab.pkl'
-MERGES_PATH = '../../tokenizer/tinystories_bep_merges.pkl'
-
-TRAIN_DATA_PATH = '../../data/train.dat'
-VALID_DATA_PATH = '../../data/valid.dat'
 
 
 if __name__ == '__main__':

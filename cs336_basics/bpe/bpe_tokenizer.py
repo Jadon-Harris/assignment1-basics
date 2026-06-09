@@ -1,3 +1,4 @@
+import pickle
 from typing import Iterable
 
 import regex
@@ -99,6 +100,31 @@ class BpeTokenizer:
     def encode_iterable(self, iterable: Iterable[str]):
         for text in iterable:
             yield from self.encode(text)
+
+    @classmethod
+    def from_files(cls, vocab_file: str, merges_file: str, special_tokens= None):
+        with open(vocab_file, 'rb') as f:
+            raw_vocab = pickle.load(f)
+
+        with open(merges_file, 'rb') as f:
+            raw_merges = pickle.load(f)
+
+        norm_vocab: dict[int, bytes] = {}
+        for k, v in raw_vocab.items():
+            k_id = int(k)
+            if isinstance(v, str):
+                v = v.encode("utf-8")
+            norm_vocab[k_id] = v
+
+        norm_merges: list[tuple[bytes, bytes]] = []
+        for a, b in raw_merges:
+            if isinstance(a, str):
+                a = a.encode("utf-8")
+            if isinstance(b, str):
+                b = b.encode("utf-8")
+            norm_merges.append((a, b))
+
+        return cls(vocab=norm_vocab, merges=norm_merges, special_tokens=special_tokens)
 
 
 if __name__ == '__main__':

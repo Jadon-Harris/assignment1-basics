@@ -19,6 +19,12 @@ class TransformerLM(nn.Module):
                  ):
         super().__init__()
         self.vocab_size = vocab_size
+        self.context_length = context_length
+        self.d_model = d_model
+        self.num_heads = num_heads
+        self.num_layers = num_layers
+        self.d_ff = d_ff
+        self.rope_theta = rope_theta
         self.embedding = embedding.Embedding(vocab_size, d_model)
         self.tf_layers = nn.ModuleList(
             [

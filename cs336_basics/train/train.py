@@ -24,7 +24,7 @@ def parse_args():
     parser.add_argument("--d_ff", type=int, default=1344, help="fnn dimension of model")
     parser.add_argument("--num_heads", type=int, default=16, help="number of heads")
     parser.add_argument("--num_layers", type=int, default=4, help="number of layers")
-    parser.add_argument("--rope_theta", type=float, default=1000.0, help="rope_theta")
+    parser.add_argument("--rope_theta", type=float, default=10000.0, help="rope_theta")
     # Optimizer hyperparameters
     parser.add_argument("--weight_decay", type=float, default=1e-2, help="weight decay")
     parser.add_argument("--beta1", type=float, default=0.9, help="adamW beta1")
@@ -65,7 +65,7 @@ def get_device(device_arg):
     return device_arg
 
 
-def get_dataset_memmap(path, dtype=np.uint16):
+def get_dataset_memmap(path, dtype=np.uint32):
     if not os.path.exists(path):
         raise FileNotFoundError(f"Dataset not found at {path}")
     dataset = np.memmap(path, dtype=dtype, mode="r")
