@@ -1,3 +1,5 @@
+import math
+
 import torch
 import torch.nn as nn
 from einops import einsum
@@ -11,9 +13,10 @@ class SwiGLU(nn.Module):
         self.w1_weight = nn.Parameter(torch.empty(d_ff, d_model, device=device, dtype=dtype))
         self.w2_weight = nn.Parameter(torch.empty(d_model, d_ff, device=device, dtype=dtype))
         self.w3_weight = nn.Parameter(torch.empty(d_ff, d_model, device=device, dtype=dtype))
-        nn.init.trunc_normal_(self.w1_weight, mean=0.0, std=1.0, a=-3.0, b=3.0)
-        nn.init.trunc_normal_(self.w2_weight, mean=0.0, std=1.0, a=-3.0, b=3.0)
-        nn.init.trunc_normal_(self.w3_weight, mean=0.0, std=1.0, a=-3.0, b=3.0)
+        sigma = math.sqrt(2 / (d_model + d_ff))
+        nn.init.trunc_normal_(self.w1_weight, mean=0.0, std=sigma, a=-3 * sigma, b=3 * sigma)
+        nn.init.trunc_normal_(self.w2_weight, mean=0.0, std=sigma, a=-3 * sigma, b=3 * sigma)
+        nn.init.trunc_normal_(self.w3_weight, mean=0.0, std=sigma, a=-3 * sigma, b=3 * sigma)
 
     def forward(self, x: torch.Tensor) -> torch.Tensor:
         w1_x = einsum(self.w1_weight, x, "d_ff d_model, ... d_model -> ... d_ff")

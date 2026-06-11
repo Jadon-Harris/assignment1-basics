@@ -34,10 +34,10 @@ def parse_args():
     parser.add_argument("--max_lr", type=float, default=1e-3, help="Maximum learning rate")
     parser.add_argument("--min_lr", type=float, default=1e-4, help="Minimum learning rate")
     parser.add_argument("--warm_up_it", type=int, default=500, help="Warmup iterations")
-    parser.add_argument("--cosine_it", type=int, default=10000, help="Cosine annealing iterations")
+    parser.add_argument("--cosine_it", type=int, default=5000, help="Cosine annealing iterations")
     # train hyperparameters
     parser.add_argument("--batch_size", type=int, default=32, help="batch size")
-    parser.add_argument("--train_steps", type=int, default=6000, help="number of training steps")
+    parser.add_argument("--train_steps", type=int, default=5000, help="number of training steps")
     parser.add_argument("--val_interval", type=int, default=100, help="validation interval")
     parser.add_argument("--val_batch_size", type=int, default=10, help="validation batch size")
     parser.add_argument("--save_interval", type=int, default=1000, help="checkpoint save interval")
@@ -141,7 +141,7 @@ def main():
         lr = lr_cosine_schedule(iter, args.max_lr, args.min_lr, args.warm_up_it, args.cosine_it)
 
         for group in optimizer.param_groups:
-            group['lr'] = lr
+            group['alpha'] = lr
 
         # sample batch
         input_ids, target_ids = get_batch(train_data, batch_size=args.batch_size, context_length=args.context_length,
