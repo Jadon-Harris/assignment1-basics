@@ -38,6 +38,7 @@ class TransformerBlock(nn.Module):
             self.to(device=device, dtype=dtype)
 
     def forward(self, x: torch.Tensor):
-        x = x + self.attention(self.ln1(x))
-        x = x + self.ffn(self.ln2(x))
+        # rm rms
+        x = x + self.attention(x)
+        x = x + self.ffn(x)
         return x

@@ -39,6 +39,7 @@ class TransformerLM(nn.Module):
         x = self.embedding(x)
         for layer in self.tf_layers:
             x = layer(x)
-        x = self.norm(x)
+        # rm rms
+        # x = self.norm(x)
         x = self.linear(x)
         return x
