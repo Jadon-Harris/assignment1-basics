@@ -4,11 +4,9 @@ import torch
 from torch import nn
 
 from cs336_basics.bpe.bpe_tokenizer import BpeTokenizer
-from cs336_basics.config import config
 from cs336_basics.config.config import MERGES_PATH, CHECKPOINT_PATH, VOCAB_PATH
 from cs336_basics.inference.softmax_with_temperature import softmax_with_temperature
 from cs336_basics.inference.top_p_sampling import top_p_sampling
-from cs336_basics.train.train import get_device
 from cs336_basics.transformer.transformer_lm import TransformerLM
 
 

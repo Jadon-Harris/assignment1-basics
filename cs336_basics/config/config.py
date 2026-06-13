@@ -9,4 +9,4 @@ MERGES_PATH = '../../tokenizer/tinystories_bep_merges.pkl'
 TRAIN_DATA_PATH = '../../data/train.dat'
 VALID_DATA_PATH = '../../data/valid.dat'
 
-CHECKPOINT_PATH = '../../checkpoints/final_checkpoint_6000.pt'
+CHECKPOINT_PATH = '../../checkpoints/final_checkpoint_5000.pt'

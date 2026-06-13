@@ -31,8 +31,8 @@ def parse_args():
     parser.add_argument("--beta2", type=float, default=0.999, help="adamW beta2")
     parser.add_argument("--eps", type=float, default=1e-8, help="adamW epsilon")
     parser.add_argument("--clip_grad_norm", type=float, default=1.0, help="gradient clipping norm")
-    parser.add_argument("--max_lr", type=float, default=1e-3, help="Maximum learning rate")
-    parser.add_argument("--min_lr", type=float, default=1e-4, help="Minimum learning rate")
+    parser.add_argument("--max_lr", type=float, default=1.75e-3, help="Maximum learning rate")
+    parser.add_argument("--min_lr", type=float, default=1.75e-4, help="Minimum learning rate")
     parser.add_argument("--warm_up_it", type=int, default=500, help="Warmup iterations")
     parser.add_argument("--cosine_it", type=int, default=5000, help="Cosine annealing iterations")
     # train hyperparameters
